@@ -1,58 +1,75 @@
-# process_pdf.py
+
 import os
-import fitz # This is PyMuPDF
+import json
+import pdfplumber
+import fitz  # PyMuPDF
 
-INPUT_DIR = "/app/input"
-OUTPUT_DIR = "/app/output"
+# Extract title using PDF metadata
+def extract_title(pdf_path):
+    doc = fitz.open(pdf_path)
+    title = doc.metadata.get("title")
+    return title if title else os.path.basename(pdf_path).replace(".pdf", "")
 
-def process_pdf_file(pdf_path):
-    """
-    Processes a single PDF file to extract basic info and
-    creates a placeholder JSON output.
-    """
-    print(f"Attempting to process: {pdf_path}")
-    try:
-        doc = fitz.open(pdf_path)
-        num_pages = doc.page_count
-        print(f"  - Successfully opened PDF. Pages: {num_pages}")
-        doc.close()
+# Extract outline (headings) from each page
+def extract_outline(pdf_path):
+    outline = []
+    with pdfplumber.open(pdf_path) as pdf:
+        for page_num, page in enumerate(pdf.pages, start=1):
+            text = page.extract_text()
+            if text:
+                lines = text.split('\n')
+                for line in lines:
+                    clean_line = line.strip()
+                    if len(clean_line) < 5:
+                        continue
 
-        # Placeholder for your actual heading extraction logic
-        # You will replace this with real title and outline data
-        output_data = {
-            "title": "Extracted Title Placeholder",
-            "outline": [
-                {"level": "H1", "text": "Sample Heading 1", "page": 1},
-            ]
-        }
+                    # Define rules for heading levels
+                    if clean_line.isupper():
+                        level = "H1"
+                    elif clean_line.istitle():
+                        level = "H2"
+                    else:
+                        continue
 
-        # Define the output JSON file path
-        output_filename = os.path.basename(pdf_path).replace('.pdf', '.json')
-        output_json_path = os.path.join(OUTPUT_DIR, output_filename)
+                    outline.append({
+                        "level": level,
+                        "text": clean_line,
+                        "page": page_num
+                    })
+    return outline
 
-        import json
-        with open(output_json_path, 'w') as f:
-            json.dump(output_data, f, indent=2)
-        print(f"  - Generated placeholder JSON: {output_json_path}")
+# Process one PDF: extract title + outline + save JSON
+def process_pdf(pdf_path, output_path):
+    title = extract_title(pdf_path)
+    outline = extract_outline(pdf_path)
 
-    except Exception as e:
-        print(f"Error processing {pdf_path}: {e}")
+    result = {
+        "title": title,
+        "outline": outline
+    }
+
+    with open(output_path, "w", encoding="utf-8") as f:
+        json.dump(result, f, indent=2, ensure_ascii=False)
+
+# Main logic for processing all PDFs in /input
+def main():
+    input_dir = "input"
+    output_dir = "output"
+
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+
+    for filename in os.listdir(input_dir):
+        if filename.endswith(".pdf"):
+            input_path = os.path.join(input_dir, filename)
+            output_filename = filename.replace(".pdf", ".json")
+            output_path = os.path.join(output_dir, output_filename)
+
+            print(f"📄 Processing: {filename}")
+            process_pdf(input_path, output_path)
+
+    print("✅ All PDFs processed.")
 
 if __name__ == "__main__":
-    print("Starting PDF processing for Adobe Hackathon Round 1A...")
+    main()
 
-    # Ensure input and output directories exist
-    os.makedirs(INPUT_DIR, exist_ok=True)
-    os.makedirs(OUTPUT_DIR, exist_ok=True)
-
-    pdf_files_in_input = [f for f in os.listdir(INPUT_DIR) if f.lower().endswith('.pdf')]
-
-    if not pdf_files_in_input:
-        print(f"No PDF files found in the input directory: {INPUT_DIR}. Please place sample PDFs there to test.")
-    else:
-        print(f"Found {len(pdf_files_in_input)} PDF(s) in {INPUT_DIR}.")
-        for pdf_file_name in pdf_files_in_input:
-            pdf_full_path = os.path.join(INPUT_DIR, pdf_file_name)
-            process_pdf_file(pdf_full_path)
-
-    print("All specified PDF processing tasks completed.")
