@@ -1,24 +1,31 @@
-# Use a lightweight Python base image for AMD64 architecture
-FROM --platform=linux/amd64 python:3.9-slim-buster
+# Use a lightweight Python base image compatible with AMD64
+# We use python:3.9-slim-buster as an example, which is generally suitable for AMD64
+FROM python:3.9-slim-buster
+
+# Explicitly specify the platform for AMD64 compatibility if needed (optional but good practice)
+# FROM --platform=linux/amd64 python:3.9-slim-buster
 
 # Set the working directory inside the container
 WORKDIR /app
 
-# Copy the requirements file into the container first to leverage Docker's build cache
+# Copy the requirements file into the container
 COPY requirements.txt .
 
-# Install Python dependencies from requirements.txt
-# The --no-cache-dir option helps keep the image size down
+# Install the Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy your entire application code into the container
-# This assumes your main Python script (e.g., process_pdf.py) is in the root of your project
-COPY . .
+# Create necessary directories as defined in your Python script
+RUN mkdir -p /app/input /app/output /app/config
 
-# Create the input and output directories as required by the hackathon setup
-RUN mkdir -p /app/input /app/output
+# Copy your application code into the container
+COPY process_pdf.py .
 
-# Specify the command to run when the container starts
-# This command should process all PDFs in /app/input and put JSONs in /app/output
+# Copy your persona_config.json into the config directory
+# You will need to create this file with your desired weights
+COPY config/persona_config.json /app/config/persona_config.json
 
-ENTRYPOINT ["python", "process_pdf.py"]
+# Command to run your script.
+# The `docker run` command provided by the hackathon will mount input/output directories:
+# `docker run ... -v $(pwd)/input:/app/input -v $(pwd)/output:/app/output ...` [cite: 3]
+# So, your script just needs to operate on /app/input and write to /app/output.
+CMD ["python", "process_pdf.py"]

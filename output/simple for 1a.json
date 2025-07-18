@@ -1,0 +1,10 @@
+{
+  "metadata": {
+    "input_document": "simple for 1a.pdf",
+    "persona": "researcher",
+    "job_to_be_done": "information_extraction",
+    "processing_timestamp": "2025-07-18T00:03:39.634275Z",
+    "document_title": "Lorem ipsum"
+  },
+  "sections": []
+}
