@@ -1,31 +1,28 @@
-# Use a lightweight Python base image compatible with AMD64
-# We use python:3.9-slim-buster as an example, which is generally suitable for AMD64
-FROM python:3.9-slim-buster
+# Use minimal base image compatible with amd64
+FROM --platform=linux/amd64 python:3.10-slim
 
-# Explicitly specify the platform for AMD64 compatibility if needed (optional but good practice)
-# FROM --platform=linux/amd64 python:3.9-slim-buster
-
-# Set the working directory inside the container
+# Set working directory
 WORKDIR /app
 
-# Copy the requirements file into the container
+# Copy requirements first for better caching
 COPY requirements.txt .
 
-# Install the Python dependencies
+# Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Create necessary directories as defined in your Python script
-RUN mkdir -p /app/input /app/output /app/config
+# --- CORRECTED MODEL HANDLING ---
 
-# Copy your application code into the container
-COPY process_pdf.py .
+# 1. Set an environment variable to define a local cache directory
+ENV TRANSFORMERS_CACHE=/app/models
 
-# Copy your persona_config.json into the config directory
-# You will need to create this file with your desired weights
-COPY config/persona_config.json /app/config/persona_config.json
+# 2. Copy the model from your host's cache to the new directory in the container
+#    Replace 'user' with your actual username on your machine, or provide the full path.
+COPY /home/user/.cache/torch/sentence_transformers/sentence-transformers_all-MiniLM-L6-v2 ${TRANSFORMERS_CACHE}/sentence-transformers_all-MiniLM-L6-v2
 
-# Command to run your script.
-# The `docker run` command provided by the hackathon will mount input/output directories:
-# `docker run ... -v $(pwd)/input:/app/input -v $(pwd)/output:/app/output ...` [cite: 3]
-# So, your script just needs to operate on /app/input and write to /app/output.
-CMD ["python", "process_pdf.py"]
+# --- END CORRECTION ---
+
+# Copy the rest of the application code into the container
+COPY . .
+
+# Set entry point to the script
+CMD ["python", "main.py", "--mode", "analyze"]
