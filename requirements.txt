@@ -1,2 +1,3 @@
 pdfminer.six==20221105
 sentence-transformers==2.2.2
+torch>=1.6.0
